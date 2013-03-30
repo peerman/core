@@ -95,8 +95,8 @@ Peer.prototype._notifyOpen = function _notifyOpen() {
 
 Peer.prototype._onIceChange = function _onIceChange (state) {
     
+    this.logger('chaning ice status: ' + this.me.iceConnectionState);
     if(this.me.iceConnectionState == 'disconnected') {
-        this.logger('state changed: disconnected');
         this.close();
     }
 }
