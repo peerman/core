@@ -1,34 +1,24 @@
-var me = new Peer('me');
-var you = new Peer('you');
-
-you.on('candidate', me.addCandidate.bind(me));
-me.on('candidate', you.addCandidate.bind(you));
-
-me.offer(function(config) {
-
-    you.answer(config, configureMe);
-});
-
-function configureMe (config) {
+function createConnection (id) {
     
-    me.setRemote(config);
-};
+    var me = new Peer('me-' + id);
+    var you = new Peer('you-' + id);
 
-you.on('connected', function() {
-    console.log('You Connected');
-});
+    you.on('candidate', me.addCandidate.bind(me));
+    me.on('candidate', you.addCandidate.bind(you));
 
-me.on('connected', function() {
-    console.log('Me Connected');
-});
+    me.offer(function(config) {
 
-you.on('message', printMessage('you'));
-me.on('message', printMessage('me'));
+        you.answer(config, configureMe);
+    });
 
-function printMessage(type) {
-
-    return function(message) {
-
-        console.log('[' +  type + '] incoming message: ', message);
+    function configureMe (config) {
+        
+        me.setRemote(config);
     };
+
+    window['me' + id] = me;
+    window['you' + id] = you;
 }
+
+createConnection(1);
+
