@@ -4,12 +4,17 @@
     <meta charset="utf-8" />
     <title>Local PeerMan Test</title>
     <script type="text/javascript" src='../vendor/debug.js'></script>
+    <script type="text/javascript"> 
+        debug.names.push(/peer:/); 
+        debug.names.push(/server/); 
+    </script>
     <script type="text/javascript" src='../vendor/ev.js'></script>
-    <script type="text/javascript" src='../src/extend.js'></script>
+    <script type="text/javascript" src='../vendor/socket.io.js'></script>
+    <script type="text/javascript" src='../src/util.js'></script>
     <script type="text/javascript" src='../src/adapter.js'></script>
     <script type="text/javascript" src='../src/peer.js'></script>
-    <script type="text/javascript"> debug.names.push(/peer:/); </script>
-    <script type="text/javascript" src='../vendor/socket.io.js'></script>
+    <script type="text/javascript" src='../src/connections.js'></script>
+    <script type="text/javascript" src='../src/server.js'></script>
     <script type="text/javascript" src='local.js'></script>
 </head>
 <body>

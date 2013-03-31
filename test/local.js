@@ -1,24 +1,59 @@
-function createConnection (id) {
+// var name = getNameFromUri();
+// var me = new Peer(name);
+// var otherName;
+
+// var socket = io.connect('http://localhost:5005');
+// socket.on('connect', function () {
     
-    var me = new Peer('me-' + id);
-    var you = new Peer('you-' + id);
+//     console.log('socket.io connected');
+//     socket.emit('init', name);
+// });
 
-    you.on('candidate', me.addCandidate.bind(me));
-    me.on('candidate', you.addCandidate.bind(you));
+// socket.on('init-success', function() {
 
-    me.offer(function(config) {
+//     console.log('initialization succeded');
+// });
 
-        you.answer(config, configureMe);
-    });
+// function connectTo(other) {
+    
+//     otherName = other;
+//     me.offer(function(desc) {
 
-    function configureMe (config) {
-        
-        me.setRemote(config);
-    };
+//         socket.emit('offer-desc', other, desc);
+//     });
 
-    window['me' + id] = me;
-    window['you' + id] = you;
-}
+//     socket.on('answer-desc', function(desc) {
 
-createConnection(1);
+//         me.setRemote(desc);
+//     });
+// }
+
+// socket.on('offer-desc', function(name, desc) {
+
+//     otherName = name;
+//     me.answer(desc, function(answerDesc) {
+
+//         socket.emit('answer-desc', name, answerDesc);
+//     })
+// });
+
+// socket.on('candidate', function(from, candidate) {
+
+//     me.addCandidate(candidate);
+// });
+
+// me.on('candidate', function(candidate) {
+
+//     socket.emit('candidate', otherName, candidate);
+// });
+
+// function getNameFromUri() {
+
+//     var parts = location.href.match(/.*#(.*)/);
+//     if(parts) {
+//         return parts[1];
+//     } else {
+//         return null;
+//     }
+// }
 
