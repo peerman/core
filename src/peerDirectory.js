@@ -2,7 +2,6 @@ function PeerDirectory (server, connectionManager, peerId) {
 
     var resource;
     var maxPeers;
-    var connectedPeers = [];
     var logger = debug('directory');
 
     this.connect = function connect(_resource, _maxPeers) {
@@ -15,51 +14,59 @@ function PeerDirectory (server, connectionManager, peerId) {
             initialize();
         }
         server.on('connect', initialize);
+        connectionManager.on('peer', onNewPeer);
     };
 
     function initialize() {
         
+        var connectedPeers = connectionManager.getConnectedPeerNames();
         server.emit('init', peerId, maxPeers, connectedPeers, [resource]);
-        server.once('init-success', findPeersFromDirectory);
+        server.once('init-success', function() {
+            findPeersFromDirectory.triggerIn(0);
+        });
     }
 
-    function findPeersFromDirectory() {
+    var findPeersFromDirectory = new Runner(function findPeersFromDirectory() {
     
         logger('findiing initial peers for resource: ' + resource);
         server.emit('request-peers', resource, 2);
         server.once('peers-found', connectWithFoundPeers);
-    }
+    }, this);
 
     function connectWithFoundPeers(peers) {
         
         logger('receiving peers to connect: ' + JSON.stringify(peers));
         if(peers.length == 0) {
-            setTimeout(findPeersFromDirectory, 2000);
+            findPeersFromDirectory.triggerIn(2000);
         } else {
+
+            var newPeersExists = false;
             peers.forEach(function(peer) {
 
-                connectionManager.connectNew(peer, {timeout: 60000}, afterPeerConnected);
+                if(!connectionManager.peers[peer]) {
+                    connectionManager.connectNew(peer, {timeout: 60000});
+                    newPeersExists = true;
+                }
             });
+
+            if(!newPeersExists) {
+                findPeersFromDirectory.triggerIn(2000);
+            }
         }
     }
 
-    function afterPeerConnected(err, peerSocket) {
+    function onNewPeer(peerSocket) {
         
-        if(err) {
-            logger('error connecting to peer: ' + err.peerId + ' error: ' + err.message);
-        } else {
-            connectedPeers.push(peerSocket.peerId);
-            server.emit('add-peer', peerSocket.peerId);
+        logger('connected with new peer: ' + peerSocket.peerId + ' type: ' + peerSocket.type);
+  
+        server.emit('add-peer', peerSocket.peerId);
 
-            peerSocket.on('disconnected', onPeerDisconnected);
-            reconsiderRequestingMorePeers();
-        }
+        peerSocket.on('disconnected', onPeerDisconnected.bind(peerSocket));
+        reconsiderRequestingMorePeers();
     }
 
     function onPeerDisconnected() {
 
-        var index = connectedPeers.indexOf(this.peerId);
-        connectedPeers.splice(index, 1);
         this.removeListener('disconnected', onPeerDisconnected);
         
         server.emit('remove-peer', this.peerId);
@@ -68,9 +75,10 @@ function PeerDirectory (server, connectionManager, peerId) {
 
     function reconsiderRequestingMorePeers() {
 
-        var howMuchMorePeersNeeded = maxPeers - connectedPeers.length;
+        var connectedPeerCount = connectionManager.getConnectedPeerCount();
+        var howMuchMorePeersNeeded = maxPeers - connectedPeerCount;
         if(howMuchMorePeersNeeded > 0) {
-            setTimeout(findPeersFromDirectory, 2000);
+            findPeersFromDirectory.triggerIn(2000);
         }
     }
 }

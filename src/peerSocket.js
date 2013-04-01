@@ -1,11 +1,13 @@
-function PeerSocket(resource, peerId) {
+function PeerSocket(resource, peerId, type) {
 
     var self = this;
     this.resource = resource;
     this.peerId = peerId;
+    this.type = type;
+    this.connected = false;
 
-    var logger = this.logger = debug('peer:' + name);
-    var iceLogger = this.iceLogger = debug('peer-ice:' + name);
+    var logger = this.logger = debug('peer:' + peerId);
+    var iceLogger = this.iceLogger = debug('peer-ice:' + peerId);
 
     var servers = {"iceServers":[{"url":"stun:stun.l.google.com:19302"}]};
     var me = this.me = new RTCPeerConnection(servers, {optional: [{RtpDataChannels: true}]});
@@ -81,6 +83,7 @@ PeerSocket.prototype.close = function close() {
     this.meData.onclose = null;
     
     this.logger('closed');
+    this.emit('disconnected');
 };
 
 PeerSocket.prototype._onIceCandidate = function _onIceCandidate (e) {
@@ -101,6 +104,7 @@ PeerSocket.prototype._notifyMessage = function _notifyMessage(message) {
 PeerSocket.prototype._notifyOpen = function _notifyOpen() {
 
     this.logger('state changed: connected');
+    this.connected = true;
     this.emit('connected');
 }
 
@@ -108,7 +112,6 @@ PeerSocket.prototype._onIceChange = function _onIceChange (state) {
     
     this.logger('changing ice status: ' + this.me.iceConnectionState);
     if(this.me.iceConnectionState == 'disconnected') {
-        this.emit('disconnected');
         this.close();
     }
 }

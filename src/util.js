@@ -28,3 +28,37 @@ function getPeerId() {
 
     return peerId;
 }
+
+/*
+    An Utility which runs a function with a timeout
+
+    * While in queue, if asked to run again that request will be discarded
+    * Timeout start with the "last run time", not the current time
+*/
+function Runner(callback, self) {
+
+    var lastRunAt = 0;
+    var scheduled = false;
+
+    this.triggerIn = function(millis) {
+
+        if(!scheduled) {
+            var now = Date.now();
+            var timeDiff = now - lastRunAt;
+            
+            if(timeDiff > millis) {
+                triggerFunction();
+            } else {
+                scheduled = true;
+                setTimeout(triggerFunction, millis - timeDiff);
+            }
+        }
+    };
+
+    function triggerFunction() {
+       
+        scheduled = false;
+        lastRunAt = Date.now();
+        callback.call(self);
+    }
+}
