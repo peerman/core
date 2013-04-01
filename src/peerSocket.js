@@ -1,6 +1,8 @@
-function Peer(name) {
+function PeerSocket(resource, peerId) {
 
     var self = this;
+    this.resource = resource;
+    this.peerId = peerId;
 
     var logger = this.logger = debug('peer:' + name);
     var iceLogger = this.iceLogger = debug('peer-ice:' + name);
@@ -15,9 +17,9 @@ function Peer(name) {
     meData.onopen = this._notifyOpen.bind(this);
 }
 
-extend(Peer, EventEmitter);
+extend(PeerSocket, EventEmitter);
 
-Peer.prototype.offer = function offer(callback) {
+PeerSocket.prototype.offer = function offer(callback) {
     
     var self = this;  
     this.me.createOffer(function(desc) {
@@ -28,7 +30,7 @@ Peer.prototype.offer = function offer(callback) {
     });
 };
 
-Peer.prototype.answer = function answer (remoteDesc, callback) {
+PeerSocket.prototype.answer = function answer (remoteDesc, callback) {
     
     if(!(remoteDesc instanceof RTCSessionDescription)) {
         remoteDesc = new RTCSessionDescription(remoteDesc);
@@ -44,13 +46,13 @@ Peer.prototype.answer = function answer (remoteDesc, callback) {
     });
 };
 
-Peer.prototype.send = function send(message) {
+PeerSocket.prototype.send = function send(message) {
 
     this.logger('sending message: ' + message);
     this.meData.send(message);
 };
 
-Peer.prototype.setRemote = function configureWithRemote (desc) {
+PeerSocket.prototype.setRemote = function configureWithRemote (desc) {
     
     if(!(desc instanceof RTCSessionDescription)) {
         desc = new RTCSessionDescription(desc);
@@ -60,7 +62,7 @@ Peer.prototype.setRemote = function configureWithRemote (desc) {
     this.me.setRemoteDescription(desc);  
 };
 
-Peer.prototype.addCandidate = function addIceCandidate (candidate) {
+PeerSocket.prototype.addCandidate = function addIceCandidate (candidate) {
     
     this.iceLogger('adding ice candidate: ' + candidate.sdpMid);
     if(this.me.iceConnectionState != 'disconnected') {
@@ -68,7 +70,7 @@ Peer.prototype.addCandidate = function addIceCandidate (candidate) {
     }
 };
 
-Peer.prototype.close = function close() {
+PeerSocket.prototype.close = function close() {
 
     this.me.close();
     
@@ -81,7 +83,7 @@ Peer.prototype.close = function close() {
     this.logger('closed');
 };
 
-Peer.prototype._onIceCandidate = function _onIceCandidate (e) {
+PeerSocket.prototype._onIceCandidate = function _onIceCandidate (e) {
 
     if(e.candidate && e.candidate.sdpMid == 'data') {
         
@@ -90,22 +92,23 @@ Peer.prototype._onIceCandidate = function _onIceCandidate (e) {
     }
 }
 
-Peer.prototype._notifyMessage = function _notifyMessage(message) {
+PeerSocket.prototype._notifyMessage = function _notifyMessage(message) {
 
     this.logger('receiving message: ' + message.data);
     this.emit('message', message.data);
 }
 
-Peer.prototype._notifyOpen = function _notifyOpen() {
+PeerSocket.prototype._notifyOpen = function _notifyOpen() {
 
     this.logger('state changed: connected');
     this.emit('connected');
 }
 
-Peer.prototype._onIceChange = function _onIceChange (state) {
+PeerSocket.prototype._onIceChange = function _onIceChange (state) {
     
     this.logger('changing ice status: ' + this.me.iceConnectionState);
     if(this.me.iceConnectionState == 'disconnected') {
+        this.emit('disconnected');
         this.close();
     }
 }
