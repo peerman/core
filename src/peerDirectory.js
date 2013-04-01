@@ -61,7 +61,7 @@ function PeerDirectory (server, connectionManager, peerId) {
   
         server.emit('add-peer', peerSocket.peerId);
 
-        peerSocket.on('disconnected', onPeerDisconnected.bind(peerSocket));
+        peerSocket.on('disconnected', onPeerDisconnected);
         reconsiderRequestingMorePeers();
     }
 

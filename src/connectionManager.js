@@ -11,9 +11,9 @@ function ConnectionManager(server, resourceName, peerId, maxPeers) {
         logger('start connecting with peer: ' + otherPeerId);
 
         var connection = new PeerSocket(resourceName, otherPeerId, 'offered');
-        connection.on('disconnected', removeConnection.bind(connection));
-        connection.on('candidate', sendCandidate.bind(connection));
-        connection.on('connected', onConnected.bind(connection));
+        connection.on('disconnected', removeConnection);
+        connection.on('candidate', sendCandidate);
+        connection.on('connected', onConnected);
 
         this.peers[otherPeerId] = connection;
 
@@ -63,9 +63,9 @@ function ConnectionManager(server, resourceName, peerId, maxPeers) {
             server.emit('answer', from, 'REJECTED');
         } else {
             var connection = new PeerSocket(resourceName, from, 'answered');
-            connection.on('disconnected', removeConnection.bind(connection));
-            connection.on('candidate', sendCandidate.bind(connection));
-            connection.on('connected', onConnected.bind(connection));
+            connection.on('disconnected', removeConnection);
+            connection.on('candidate', sendCandidate);
+            connection.on('connected', onConnected);
             connection.answer(desc, function(answerDesc) {
 
                 server.emit('answer', from, 'ACCEPTED', answerDesc);
