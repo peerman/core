@@ -62,6 +62,8 @@ function ConnectionManager(server, resourceName, peerId, maxPeers, options) {
     server.on('answer', onAnswer);
     server.on('offer', onOffer);
     server.on('ice-candidate', onIceCandidate);
+    server.on('error', onServerError);
+
 
     function onAnswer(from, status, answerDesc) {
 
@@ -114,6 +116,17 @@ function ConnectionManager(server, resourceName, peerId, maxPeers, options) {
             connection.addCandidate(candidate);
         } else {
             logger('no connection to offer ice-candidate: ' + from);
+        }
+    }
+
+    function onServerError(event, error) {
+        
+        logger('server error on: ' + event + ' error: ' + JSON.stringify(error));
+        if(error.code == 'NO_CLIENT') {
+            var connection = self.peers[error.to];
+            if(connection) {
+                connection.close();
+            }
         }
     }
 
