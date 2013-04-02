@@ -1,17 +1,22 @@
-function ConnectionManager(server, resourceName, peerId, maxPeers) {
+function ConnectionManager(server, resourceName, peerId, maxPeers, options) {
+
+    options = options || {};
 
 	var self = this;
 	this.peers = {}; //connected peers
     var connectedPeerCount = 0;
+    var timeoutHandlers = {};
 
     var logger = debug('connection-manager');
 
-    this.connectNew = function connectNew(otherPeerId) {
+    this.connectNew = function connectNew(otherPeerId, connectOptions) {
         
+        connectOptions = connectOptions || {};
+
         logger('start connecting with peer: ' + otherPeerId);
 
         var connection = new PeerSocket(resourceName, otherPeerId, 'offered');
-        connection.on('disconnected', removeConnection);
+        connection.on('disconnected', onDisconnected);
         connection.on('candidate', sendCandidate);
         connection.on('connected', onConnected);
 
@@ -21,6 +26,10 @@ function ConnectionManager(server, resourceName, peerId, maxPeers) {
 
             server.emit('offer', otherPeerId, desc);
         });
+
+        if(connectOptions.timeout) {
+            enableTimeout(otherPeerId, connectOptions.timeout);
+        }
     };
 
     this.getConnectedPeerNames = function getConnectedPeers() {
@@ -48,10 +57,14 @@ function ConnectionManager(server, resourceName, peerId, maxPeers) {
 
         logger('answer from: ' + from  + ' with status: ' + status);
         var connection = self.peers[from];
-        if(status == 'ACCEPTED') {
-            connection.setRemote(answerDesc);
+        if(connection) {
+            if(status == 'ACCEPTED') {
+                connection.setRemote(answerDesc);
+            } else {
+                connection.close();
+            }
         } else {
-            connection.close();
+            logger('no connection to answer: ' + from);
         }
     }
 
@@ -63,15 +76,23 @@ function ConnectionManager(server, resourceName, peerId, maxPeers) {
             server.emit('answer', from, 'REJECTED');
         } else {
             var connection = new PeerSocket(resourceName, from, 'answered');
-            connection.on('disconnected', removeConnection);
-            connection.on('candidate', sendCandidate);
-            connection.on('connected', onConnected);
-            connection.answer(desc, function(answerDesc) {
+            if(connection) {
+                connection.on('disconnected', onDisconnected);
+                connection.on('candidate', sendCandidate);
+                connection.on('connected', onConnected);
+                connection.answer(desc, function(answerDesc) {
 
-                server.emit('answer', from, 'ACCEPTED', answerDesc);
-            });
+                    server.emit('answer', from, 'ACCEPTED', answerDesc);
+                });
 
-            self.peers[from] = connection;
+                self.peers[from] = connection;
+
+                if(options.answerTimeout) {
+                    enableTimeout(from, options.answerTimeout);
+                }
+            } else {
+                logger('no connection to offer: ' + from);
+            }
         }
 
     }
@@ -79,7 +100,11 @@ function ConnectionManager(server, resourceName, peerId, maxPeers) {
     function onIceCandidate(from, candidate) {
 
         var connection = self.peers[from];
-        connection.addCandidate(candidate);
+        if(connection) {
+            connection.addCandidate(candidate);
+        } else {
+            logger('no connection to offer ice-candidate: ' + from);
+        }
     }
 
     function sendCandidate(candidate) {
@@ -93,17 +118,44 @@ function ConnectionManager(server, resourceName, peerId, maxPeers) {
         connectedPeerCount++;
         self.emit('peer', this);
         this.removeListener('connected', onConnected);
+
+        cancleTimeout(this.peerId);
     }
 
-    function removeConnection() {
+    function onDisconnected() {
 
         logger('disconnecting: ' + this.peerId);
         connectedPeerCount--;
 
     	delete self.peers[this.peerId];
-        this.removeListener('disconnected', removeConnection);
+        this.removeListener('disconnected', onDisconnected);
         this.removeListener('candidate', sendCandidate);
         this.removeListener('connected', onConnected);
+
+        cancleTimeout(this.peerId);
+    }
+
+    function enableTimeout(peerId, timeoutMillis) {
+        
+        timeoutHandlers[peerId] = setTimeout(function() {
+
+            var connection = self.peers[peerId];
+            if(connection && !connection.connected) {
+                logger('timeouting: ' + peerId + ' after: ' + timeoutMillis);
+                connection.close();
+                timeoutHandlers[peerId] = null;
+            }
+        }, timeoutMillis);
+    }
+
+    function cancleTimeout(peerId) {
+        
+        var handler = timeoutHandlers[peerId];
+        if(handler) {
+            logger('clearing timeout handler for: ' + peerId);
+            clearTimeout(handler);
+            timeoutHandlers[peerId] = null;
+        }
     }
 }
 

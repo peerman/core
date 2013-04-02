@@ -1,8 +1,11 @@
-function PeerDirectory (server, connectionManager, peerId) {
+function PeerDirectory (server, connectionManager, peerId, options) {
+
+    options = options || {};
 
     var resource;
     var maxPeers;
     var logger = debug('directory');
+    var NUM_REQUESTING_PEERS_COUNT = 2;
 
     this.connect = function connect(_resource, _maxPeers) {
 
@@ -29,7 +32,7 @@ function PeerDirectory (server, connectionManager, peerId) {
     var findPeersFromDirectory = new Runner(function findPeersFromDirectory() {
     
         logger('findiing initial peers for resource: ' + resource);
-        server.emit('request-peers', resource, 2);
+        server.emit('request-peers', resource, NUM_REQUESTING_PEERS_COUNT);
         server.once('peers-found', connectWithFoundPeers);
     }, this);
 
@@ -40,16 +43,16 @@ function PeerDirectory (server, connectionManager, peerId) {
             findPeersFromDirectory.triggerIn(2000);
         } else {
 
-            var newPeersExists = false;
+            var numConnecting = 0;
             peers.forEach(function(peer) {
 
                 if(!connectionManager.peers[peer]) {
-                    connectionManager.connectNew(peer, {timeout: 60000});
-                    newPeersExists = true;
+                    connectionManager.connectNew(peer, {timeout: options.offerTimeout});
+                    numConnecting++;
                 }
             });
 
-            if(!newPeersExists) {
+            if(numConnecting != NUM_REQUESTING_PEERS_COUNT) {
                 findPeersFromDirectory.triggerIn(2000);
             }
         }
