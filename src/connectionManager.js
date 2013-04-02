@@ -49,6 +49,16 @@ function ConnectionManager(server, resourceName, peerId, maxPeers, options) {
         return connectedPeerCount;
     };
 
+    this.canHaveMorePeers = function canHaveMorePeers(count) {
+
+        var cntMoreNeeded = maxPeers - connectedPeerCount;
+        if(cntMoreNeeded > 0) {
+            return (cntMoreNeeded > count)? count: cntMoreNeeded;
+        } else {
+            return 0;
+        }
+    };
+
     server.on('answer', onAnswer);
     server.on('offer', onOffer);
     server.on('ice-candidate', onIceCandidate);

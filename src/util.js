@@ -40,25 +40,27 @@ function Runner(callback, self) {
     var lastRunAt = 0;
     var scheduled = false;
 
-    this.triggerIn = function(millis) {
+    this.triggerIn = function(millis, args) {
 
         if(!scheduled) {
             var now = Date.now();
             var timeDiff = now - lastRunAt;
             
             if(timeDiff > millis) {
-                triggerFunction();
+                triggerFunction(args);
             } else {
                 scheduled = true;
-                setTimeout(triggerFunction, millis - timeDiff);
+                setTimeout(function() {
+                    triggerFunction(args);
+                }, millis - timeDiff);
             }
         }
     };
 
-    function triggerFunction() {
+    function triggerFunction(args) {
        
         scheduled = false;
         lastRunAt = Date.now();
-        callback.call(self);
+        callback.apply(self, args);
     }
 }

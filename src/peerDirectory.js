@@ -25,24 +25,24 @@ function PeerDirectory (server, connectionManager, peerId, options) {
         var connectedPeers = connectionManager.getConnectedPeerNames();
         server.emit('init', peerId, maxPeers, connectedPeers, [resource]);
         server.once('init-success', function() {
-            findPeersFromDirectory.triggerIn(0);
+            findPeersFromDirectory.triggerIn(0, [NUM_REQUESTING_PEERS_COUNT]);
         });
     }
 
-    var findPeersFromDirectory = new Runner(function findPeersFromDirectory() {
-    
-        logger('findiing initial peers for resource: ' + resource);
-        server.emit('request-peers', resource, NUM_REQUESTING_PEERS_COUNT);
+    var findPeersFromDirectory = new Runner(function findPeersFromDirectory(peerCount) {
+
+        logger('findiing peers for resource: ' + resource + ' count: ' + peerCount);
+        server.emit('request-peers', resource, peerCount);
         server.once('peers-found', connectWithFoundPeers);
     }, this);
 
     function connectWithFoundPeers(peers) {
         
         logger('receiving peers to connect: ' + JSON.stringify(peers));
-        if(peers.length == 0) {
-            findPeersFromDirectory.triggerIn(2000);
-        } else {
 
+        if(peers.length == 0) {
+            reconsiderRequestingMorePeers();
+        } else {
             var numConnecting = 0;
             peers.forEach(function(peer) {
 
@@ -53,7 +53,7 @@ function PeerDirectory (server, connectionManager, peerId, options) {
             });
 
             if(numConnecting != NUM_REQUESTING_PEERS_COUNT) {
-                findPeersFromDirectory.triggerIn(2000);
+                reconsiderRequestingMorePeers();
             }
         }
     }
@@ -78,10 +78,9 @@ function PeerDirectory (server, connectionManager, peerId, options) {
 
     function reconsiderRequestingMorePeers() {
 
-        var connectedPeerCount = connectionManager.getConnectedPeerCount();
-        var howMuchMorePeersNeeded = maxPeers - connectedPeerCount;
-        if(howMuchMorePeersNeeded > 0) {
-            findPeersFromDirectory.triggerIn(2000);
+        var acceptedPeerCount = connectionManager.canHaveMorePeers(NUM_REQUESTING_PEERS_COUNT);
+        if(acceptedPeerCount > 0) {
+            findPeersFromDirectory.triggerIn(2000, [acceptedPeerCount]);  
         }
     }
 }

@@ -10,5 +10,4 @@ var connectionManager = new ConnectionManager(socket, resourceLookingFor, peerId
 
 var directoryOptions = { offerTimeout: 60000 };
 var peerDirectory = new PeerDirectory(socket, connectionManager, peerId, directoryOptions);
-
-peerDirectory.connect(resourceLookingFor, maxPeers);
+peerDirectory.connect(resourceLookingFor);
