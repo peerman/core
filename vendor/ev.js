@@ -112,6 +112,19 @@
      */
     proto.on = proto.addListener;
 
+     /**
+     * Alias of addListener
+     * @doc
+     */
+    proto.once = function(evt, listener) {
+
+        var self = this;
+        this.on(evt, function() {
+            listener.apply(self, arguments);
+            self.removeListener(evt, listener);
+        });      
+    };
+
     /**
      * Removes a listener function from the specified event.
      *

@@ -1,14 +1,11 @@
-if(RTCPeerConnection) return;
+if(!window.RTCPeerConnection) {
 
-var RTCPeerConnection = null;
-var getUserMedia = null;
-var attachMediaStream = null;
-
-if (navigator.mozGetUserMedia) {
-    RTCSessionDescription = window.mozRTCSessionDescription;
-    RTCPeerConnection = window.mozRTCPeerConnection;
-    getUserMedia = navigator.mozGetUserMedia.bind(navigator);
-} else if (navigator.webkitGetUserMedia) {
-    RTCPeerConnection = window.webkitRTCPeerConnection;
-    getUserMedia = navigator.webkitGetUserMedia.bind(navigator);
+	if (navigator.mozGetUserMedia) {
+	    window.RTCSessionDescription = window.mozRTCSessionDescription;
+	    window.RTCPeerConnection = window.mozRTCPeerConnection;
+	   	window.getUserMedia = navigator.mozGetUserMedia.bind(navigator);
+	} else if (navigator.webkitGetUserMedia) {
+	    window.RTCPeerConnection = window.webkitRTCPeerConnection;
+	    window.getUserMedia = navigator.webkitGetUserMedia.bind(navigator);
+	}
 }

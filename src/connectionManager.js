@@ -59,6 +59,20 @@ function ConnectionManager(server, resourceName, peerId, maxPeers, options) {
         }
     };
 
+    this.close = function close() {
+
+        //server based listeners
+        server.removeListener('answer', onAnswer);
+        server.removeListener('offer', onOffer);
+        server.removeListener('ice-candidate', onIceCandidate);
+        server.removeListener('error', onServerError);
+
+        //close connections
+        for(var peerId in this.peers) {
+            this.peers[peerId].close();
+        }
+    };
+
     server.on('answer', onAnswer);
     server.on('offer', onOffer);
     server.on('ice-candidate', onIceCandidate);
@@ -122,7 +136,7 @@ function ConnectionManager(server, resourceName, peerId, maxPeers, options) {
     function onServerError(event, error) {
         
         logger('server error on: ' + event + ' error: ' + JSON.stringify(error));
-        if(error.code == 'NO_CLIENT') {
+        if(error && error.code == 'NO_CLIENT') {
             var connection = self.peers[error.to];
             if(connection) {
                 connection.close();
@@ -132,7 +146,7 @@ function ConnectionManager(server, resourceName, peerId, maxPeers, options) {
 
     function sendCandidate(candidate) {
 
-        socket.emit('ice-candidate', this.peerId, candidate);
+        server.emit('ice-candidate', this.peerId, candidate);
     }
 
     function onConnected() {

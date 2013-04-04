@@ -6,6 +6,7 @@ function PeerDirectory (server, connectionManager, peerId, options) {
     var maxPeers;
     var logger = debug('directory');
     var NUM_REQUESTING_PEERS_COUNT = 2;
+    var closed = false;
 
     this.connect = function connect(_resource, _maxPeers) {
 
@@ -20,10 +21,24 @@ function PeerDirectory (server, connectionManager, peerId, options) {
         connectionManager.on('peer', onNewPeer);
     };
 
+    this.close = function close() {
+
+        closed = true;
+        server.removeListener('connect', initialize);
+        connectionManager.removeListener('peer', onNewPeer);
+    };
+
     function initialize() {
         
         var connectedPeers = connectionManager.getConnectedPeerNames();
-        server.emit('init', peerId, maxPeers, connectedPeers, [resource]);
+        var loginToken = getCookie('peerman-login-token');
+        server.emit('init', {
+            peerId: peerId,
+            totalInterested: maxPeers,
+            connectedPeers: connectedPeers,
+            resourcesInterested: [resource],
+            loginToken: loginToken
+        });
         server.once('init-success', function() {
             findPeersFromDirectory.triggerIn(0, [NUM_REQUESTING_PEERS_COUNT]);
         });
@@ -78,9 +93,11 @@ function PeerDirectory (server, connectionManager, peerId, options) {
 
     function reconsiderRequestingMorePeers() {
 
-        var acceptedPeerCount = connectionManager.canHaveMorePeers(NUM_REQUESTING_PEERS_COUNT);
-        if(acceptedPeerCount > 0) {
-            findPeersFromDirectory.triggerIn(2000, [acceptedPeerCount]);  
+        if(!closed) {
+            var acceptedPeerCount = connectionManager.canHaveMorePeers(NUM_REQUESTING_PEERS_COUNT);
+            if(acceptedPeerCount > 0) {
+                findPeersFromDirectory.triggerIn(2000, [acceptedPeerCount]);  
+            }
         }
     }
 }
