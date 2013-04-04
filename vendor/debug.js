@@ -2,7 +2,7 @@
  * Expose `debug()` as the module.
  */
 
-window.debug = debug;
+// window.debug = debug;
 
 /**
  * Create a debugger with the given `name`.

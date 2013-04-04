@@ -1,6 +1,3 @@
-var peerman = new Peerman();
-peerman.connect();
-
 var resource = peerman.join('abc10');
 resource.on('peer', function(peer) {
 

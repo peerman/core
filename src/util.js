@@ -77,3 +77,21 @@ function getCookie(c_name) {
         }
     }
 }
+
+function getScriptQuery() {
+    
+    var scripts = document.getElementsByTagName('script');
+    var scriptSrc= scripts[scripts.length - 1].src;
+
+    var qs = scriptSrc.split('?')[1];
+    var query = {};
+    if(qs) {
+        var parts = qs.split('&');
+        parts.forEach(function(part) {
+            var secondPart = part.split('=');
+            query[secondPart[0]] = secondPart[1];
+        });
+    }   
+
+    return query;
+}
