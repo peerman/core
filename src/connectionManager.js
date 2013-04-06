@@ -97,7 +97,7 @@ function ConnectionManager(server, resourceName, peerId, maxPeers, options) {
     function onOffer(from, desc) {
 
         logger('offer from: ' + from);
-        if(self.peers[desc]) {
+        if(self.peers[from]) {
             logger('offer rejected because of exisitng from: ' + from);
             server.emit('answer', from, 'REJECTED');
         } else {
