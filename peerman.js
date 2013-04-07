@@ -4036,15 +4036,12 @@ function PeerDirectory (server, connectionManager, peerId, options) {
         
         var connectedPeers = connectionManager.getConnectedPeerNames();
         var loginToken = getCookie('peerman-login-token');
-        server.emit('init', {
-            peerId: peerId,
+        server.emit('init-resource', peerId, resource, {
             totalInterested: maxPeers,
             connectedPeers: connectedPeers,
-            resourcesInterested: [resource],
-            loginToken: loginToken,
             timestamp: Date.now()
         });
-        server.once('init-success', function() {
+        server.once('init-success-' + resource, function() {
             findPeersFromDirectory.triggerIn(0, [NUM_REQUESTING_PEERS_COUNT]);
         });
     }
@@ -4053,7 +4050,7 @@ function PeerDirectory (server, connectionManager, peerId, options) {
 
         logger('findiing peers for resource: ' + resource + ' count: ' + peerCount);
         server.emit('request-peers', resource, peerCount);
-        server.once('peers-found', connectWithFoundPeers);
+        server.once('peers-found-' + resource, connectWithFoundPeers);
     }, this);
 
     function connectWithFoundPeers(peers) {
@@ -4082,7 +4079,7 @@ function PeerDirectory (server, connectionManager, peerId, options) {
         
         logger('connected with new peer: ' + peerSocket.peerId + ' type: ' + peerSocket.type);
   
-        server.emit('add-peer', peerSocket.peerId);
+        server.emit('add-peer', resource, peerSocket.peerId);
 
         peerSocket.on('disconnected', onPeerDisconnected);
         reconsiderRequestingMorePeers();
@@ -4092,7 +4089,7 @@ function PeerDirectory (server, connectionManager, peerId, options) {
 
         this.removeListener('disconnected', onPeerDisconnected);
         
-        server.emit('remove-peer', this.peerId);
+        server.emit('remove-peer', resource, this.peerId);
         reconsiderRequestingMorePeers();
     }
 
@@ -4211,7 +4208,7 @@ function ConnectionManager(server, resourceName, peerId, maxPeers, options) {
 
         connection.offer(function(desc) {
 
-            server.emit('offer', otherPeerId, desc);
+            server.emit('offer', resourceName, otherPeerId, desc);
         });
 
         if(connectOptions.timeout) {
@@ -4249,10 +4246,10 @@ function ConnectionManager(server, resourceName, peerId, maxPeers, options) {
     this.close = function close() {
 
         //server based listeners
-        server.removeListener('answer', onAnswer);
-        server.removeListener('offer', onOffer);
-        server.removeListener('ice-candidate', onIceCandidate);
-        server.removeListener('error', onServerError);
+        server.removeListener('answer-' + resourceName, onAnswer);
+        server.removeListener('offer-' + resourceName, onOffer);
+        server.removeListener('ice-candidate-' + resourceName, onIceCandidate);
+        server.removeListener('error-' + resourceName, onServerError);
 
         //close connections
         for(var peerId in this.peers) {
@@ -4260,10 +4257,10 @@ function ConnectionManager(server, resourceName, peerId, maxPeers, options) {
         }
     };
 
-    server.on('answer', onAnswer);
-    server.on('offer', onOffer);
-    server.on('ice-candidate', onIceCandidate);
-    server.on('error', onServerError);
+    server.on('answer-' + resourceName, onAnswer);
+    server.on('offer-' + resourceName, onOffer);
+    server.on('ice-candidate-' + resourceName, onIceCandidate);
+    server.on('error-' + resourceName, onServerError);
 
 
     function onAnswer(from, status, answerDesc) {
@@ -4286,7 +4283,7 @@ function ConnectionManager(server, resourceName, peerId, maxPeers, options) {
         logger('offer from: ' + from);
         if(self.peers[from]) {
             logger('offer rejected because of exisitng from: ' + from);
-            server.emit('answer', from, 'REJECTED');
+            server.emit('answer', resourceName, from, 'REJECTED');
         } else {
             var connection = new PeerSocket(resourceName, from, 'answered');
             if(connection) {
@@ -4295,7 +4292,7 @@ function ConnectionManager(server, resourceName, peerId, maxPeers, options) {
                 connection.on('connected', onConnected);
                 connection.answer(desc, function(answerDesc) {
 
-                    server.emit('answer', from, 'ACCEPTED', answerDesc);
+                    server.emit('answer', resourceName, from, 'ACCEPTED', answerDesc);
                 });
 
                 self.peers[from] = connection;
@@ -4333,7 +4330,7 @@ function ConnectionManager(server, resourceName, peerId, maxPeers, options) {
 
     function sendCandidate(candidate) {
 
-        server.emit('ice-candidate', this.peerId, candidate);
+        server.emit('ice-candidate', resourceName, this.peerId, candidate);
     }
 
     function onConnected() {
@@ -4387,6 +4384,7 @@ extend(ConnectionManager, EventEmitter);
 function Peerman() {
 
 	var peerId = getPeerId();
+	var loginToken = getCookie('peerman-login-token');
 	var socket;
 	var options;
 	var resourceManager;
@@ -4398,11 +4396,18 @@ function Peerman() {
 		server = server || "http://localhost:5005";
 		socket = io.connect(server);
 		resourceManager = new ResourceManager(socket);
-
+		
+		//initialize
+		if(socket.socket.connected) {
+			initialize();
+		}
+		socket.on('connect', initialize);
+		
 		//add some utility methods
 		this.createResource = resourceManager.createResource.bind(resourceManager);
 		this.removeResource = resourceManager.removeResource.bind(resourceManager);
 		this.getResource = resourceManager.getResource.bind(resourceManager);
+
 		this.connect = function() {};
 	};
 
@@ -4411,6 +4416,7 @@ function Peerman() {
 		for(var key in resources) {
 			resources[key].leave();
 		}
+		socket.removeListener('connect', initialize);
 		socket.disconnect();
 	};
 
@@ -4428,6 +4434,11 @@ function Peerman() {
 		resources[id] = resourceObj;
 		return resourceObj;
 	};
+
+	function initialize() {
+
+		socket.emit('init', peerId, loginToken);
+	}
 }
 
 function PeermanResource (peerId, server) {

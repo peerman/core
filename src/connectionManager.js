@@ -24,7 +24,7 @@ function ConnectionManager(server, resourceName, peerId, maxPeers, options) {
 
         connection.offer(function(desc) {
 
-            server.emit('offer', otherPeerId, desc);
+            server.emit('offer', resourceName, otherPeerId, desc);
         });
 
         if(connectOptions.timeout) {
@@ -62,10 +62,10 @@ function ConnectionManager(server, resourceName, peerId, maxPeers, options) {
     this.close = function close() {
 
         //server based listeners
-        server.removeListener('answer', onAnswer);
-        server.removeListener('offer', onOffer);
-        server.removeListener('ice-candidate', onIceCandidate);
-        server.removeListener('error', onServerError);
+        server.removeListener('answer-' + resourceName, onAnswer);
+        server.removeListener('offer-' + resourceName, onOffer);
+        server.removeListener('ice-candidate-' + resourceName, onIceCandidate);
+        server.removeListener('error-' + resourceName, onServerError);
 
         //close connections
         for(var peerId in this.peers) {
@@ -73,10 +73,10 @@ function ConnectionManager(server, resourceName, peerId, maxPeers, options) {
         }
     };
 
-    server.on('answer', onAnswer);
-    server.on('offer', onOffer);
-    server.on('ice-candidate', onIceCandidate);
-    server.on('error', onServerError);
+    server.on('answer-' + resourceName, onAnswer);
+    server.on('offer-' + resourceName, onOffer);
+    server.on('ice-candidate-' + resourceName, onIceCandidate);
+    server.on('error-' + resourceName, onServerError);
 
 
     function onAnswer(from, status, answerDesc) {
@@ -99,7 +99,7 @@ function ConnectionManager(server, resourceName, peerId, maxPeers, options) {
         logger('offer from: ' + from);
         if(self.peers[from]) {
             logger('offer rejected because of exisitng from: ' + from);
-            server.emit('answer', from, 'REJECTED');
+            server.emit('answer', resourceName, from, 'REJECTED');
         } else {
             var connection = new PeerSocket(resourceName, from, 'answered');
             if(connection) {
@@ -108,7 +108,7 @@ function ConnectionManager(server, resourceName, peerId, maxPeers, options) {
                 connection.on('connected', onConnected);
                 connection.answer(desc, function(answerDesc) {
 
-                    server.emit('answer', from, 'ACCEPTED', answerDesc);
+                    server.emit('answer', resourceName, from, 'ACCEPTED', answerDesc);
                 });
 
                 self.peers[from] = connection;
@@ -146,7 +146,7 @@ function ConnectionManager(server, resourceName, peerId, maxPeers, options) {
 
     function sendCandidate(candidate) {
 
-        server.emit('ice-candidate', this.peerId, candidate);
+        server.emit('ice-candidate', resourceName, this.peerId, candidate);
     }
 
     function onConnected() {

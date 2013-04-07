@@ -1,6 +1,7 @@
 function Peerman() {
 
 	var peerId = getPeerId();
+	var loginToken = getCookie('peerman-login-token');
 	var socket;
 	var options;
 	var resourceManager;
@@ -12,11 +13,18 @@ function Peerman() {
 		server = server || "http://localhost:5005";
 		socket = io.connect(server);
 		resourceManager = new ResourceManager(socket);
-
+		
+		//initialize
+		if(socket.socket.connected) {
+			initialize();
+		}
+		socket.on('connect', initialize);
+		
 		//add some utility methods
 		this.createResource = resourceManager.createResource.bind(resourceManager);
 		this.removeResource = resourceManager.removeResource.bind(resourceManager);
 		this.getResource = resourceManager.getResource.bind(resourceManager);
+
 		this.connect = function() {};
 	};
 
@@ -25,6 +33,7 @@ function Peerman() {
 		for(var key in resources) {
 			resources[key].leave();
 		}
+		socket.removeListener('connect', initialize);
 		socket.disconnect();
 	};
 
@@ -42,6 +51,11 @@ function Peerman() {
 		resources[id] = resourceObj;
 		return resourceObj;
 	};
+
+	function initialize() {
+
+		socket.emit('init', peerId, loginToken);
+	}
 }
 
 function PeermanResource (peerId, server) {

@@ -32,15 +32,12 @@ function PeerDirectory (server, connectionManager, peerId, options) {
         
         var connectedPeers = connectionManager.getConnectedPeerNames();
         var loginToken = getCookie('peerman-login-token');
-        server.emit('init', {
-            peerId: peerId,
+        server.emit('init-resource', peerId, resource, {
             totalInterested: maxPeers,
             connectedPeers: connectedPeers,
-            resourcesInterested: [resource],
-            loginToken: loginToken,
             timestamp: Date.now()
         });
-        server.once('init-success', function() {
+        server.once('init-success-' + resource, function() {
             findPeersFromDirectory.triggerIn(0, [NUM_REQUESTING_PEERS_COUNT]);
         });
     }
@@ -49,7 +46,7 @@ function PeerDirectory (server, connectionManager, peerId, options) {
 
         logger('findiing peers for resource: ' + resource + ' count: ' + peerCount);
         server.emit('request-peers', resource, peerCount);
-        server.once('peers-found', connectWithFoundPeers);
+        server.once('peers-found-' + resource, connectWithFoundPeers);
     }, this);
 
     function connectWithFoundPeers(peers) {
@@ -78,7 +75,7 @@ function PeerDirectory (server, connectionManager, peerId, options) {
         
         logger('connected with new peer: ' + peerSocket.peerId + ' type: ' + peerSocket.type);
   
-        server.emit('add-peer', peerSocket.peerId);
+        server.emit('add-peer', resource, peerSocket.peerId);
 
         peerSocket.on('disconnected', onPeerDisconnected);
         reconsiderRequestingMorePeers();
@@ -88,7 +85,7 @@ function PeerDirectory (server, connectionManager, peerId, options) {
 
         this.removeListener('disconnected', onPeerDisconnected);
         
-        server.emit('remove-peer', this.peerId);
+        server.emit('remove-peer', resource, this.peerId);
         reconsiderRequestingMorePeers();
     }
 
