@@ -37,7 +37,8 @@ function PeerDirectory (server, connectionManager, peerId, options) {
             totalInterested: maxPeers,
             connectedPeers: connectedPeers,
             resourcesInterested: [resource],
-            loginToken: loginToken
+            loginToken: loginToken,
+            timestamp: Date.now()
         });
         server.once('init-success', function() {
             findPeersFromDirectory.triggerIn(0, [NUM_REQUESTING_PEERS_COUNT]);

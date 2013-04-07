@@ -4041,7 +4041,8 @@ function PeerDirectory (server, connectionManager, peerId, options) {
             totalInterested: maxPeers,
             connectedPeers: connectedPeers,
             resourcesInterested: [resource],
-            loginToken: loginToken
+            loginToken: loginToken,
+            timestamp: Date.now()
         });
         server.once('init-success', function() {
             findPeersFromDirectory.triggerIn(0, [NUM_REQUESTING_PEERS_COUNT]);
@@ -4283,7 +4284,7 @@ function ConnectionManager(server, resourceName, peerId, maxPeers, options) {
     function onOffer(from, desc) {
 
         logger('offer from: ' + from);
-        if(self.peers[desc]) {
+        if(self.peers[from]) {
             logger('offer rejected because of exisitng from: ' + from);
             server.emit('answer', from, 'REJECTED');
         } else {
