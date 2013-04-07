@@ -11,3 +11,6 @@ if(query.debug) {
 
 var peerman = window.peerman = new Peerman();
 peerman.connect(server);
+
+//exporting Classes
+peerman.EventEmitter = EventEmitter;

@@ -1,6 +1,6 @@
 function Peerman() {
 
-	var peerId = getPeerId();
+	var peerId = this.peerId = getPeerId();
 	var loginToken = getCookie('peerman-login-token');
 	var socket;
 	var options;
@@ -72,7 +72,7 @@ function PeermanResource (peerId, server) {
 		
 		var directoryOptions = { offerTimeout: options.offerTimeout };
 		peerDirectory = new PeerDirectory(server, connectionManager, peerId, directoryOptions);
-		peerDirectory.connect(resource);
+		peerDirectory.connect(resource, options.maxPeers);
 
 		this.connect = function() {};
 	};

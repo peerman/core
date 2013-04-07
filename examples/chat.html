@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>Peerman based Chat</title>
+
+    <script type="text/javascript" src='../peerman.js'></script>
+    <script type="text/javascript" src='ui.js'></script>
+    <script type="text/javascript">
+
+        document.title = peerman.peerId;
+        var peers = [];
+        var resource = peerman.join('this-is-a-fake-resource', { maxPeers: 4 });
+        resource.on('peer', function(peer) {
+
+            ui.emit('log', 'Connecting with Peer: ' + peer.peerId);
+            peer.on('message', displayMessage);
+            peer.once('disconnected', displayChao);
+            peers.push(peer);
+        });
+
+        function displayMessage(message) {
+            
+            ui.emit('log', '[' + this.peerId + ']Incomming message: ' + message);
+        }
+
+        function displayChao() {
+                
+            ui.emit('log', 'disconnecting peer: ' + this.peerId);
+            var index = peers.indexOf(this);
+            peers.splice(index, 1);
+        }
+
+        ui.on('broadcast', function(message) {
+
+            peers.forEach(function(peer) {
+                peer.send(message);
+            });
+        });
+
+    </script>
+</head>
+<body>
+</body>
+</html>

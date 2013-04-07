@@ -100,7 +100,7 @@ function ConnectionManager(server, resourceName, peerId, maxPeers, options) {
         if(self.peers[from]) {
             logger('offer rejected because of exisitng from: ' + from);
             server.emit('answer', resourceName, from, 'REJECTED');
-        } else {
+        } else if(self.canHaveMorePeers(1)) {
             var connection = new PeerSocket(resourceName, from, 'answered');
             if(connection) {
                 connection.on('disconnected', onDisconnected);
@@ -119,6 +119,8 @@ function ConnectionManager(server, resourceName, peerId, maxPeers, options) {
             } else {
                 logger('no connection to offer: ' + from);
             }
+        } else {
+            logger('rejecting peer due to maxPeers limit: ' + from);
         }
 
     }
@@ -151,12 +153,17 @@ function ConnectionManager(server, resourceName, peerId, maxPeers, options) {
 
     function onConnected() {
 
-        logger('connecting: ' + this.peerId);
-        connectedPeerCount++;
-        self.emit('peer', this);
-        this.removeListener('connected', onConnected);
+        if(connectedPeerCount < maxPeers) {
+            logger('connecting: ' + this.peerId);
+            connectedPeerCount++;
+            self.emit('peer', this);
+            this.removeListener('connected', onConnected);
 
-        cancleTimeout(this.peerId);
+            cancleTimeout(this.peerId);
+        } else {
+            logger('connection dropped due to maxPeers limit: ' + this.peerId);
+            this.close();
+        }
     }
 
     function onDisconnected() {
