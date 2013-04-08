@@ -13,7 +13,7 @@
         var resource = peerman.join('this-is-a-fake-resource', { maxPeers: 4 });
         resource.on('peer', function(peer) {
 
-            ui.emit('log', 'Connecting with Peer: ' + peer.peerId);
+            ui.log('Connecting with Peer: ' + peer.peerId);
             peer.on('message', displayMessage);
             peer.once('disconnected', displayChao);
             peers.push(peer);
@@ -21,17 +21,18 @@
 
         function displayMessage(message) {
             
-            ui.emit('log', '[' + this.peerId + ']Incomming message: ' + message);
+            ui.log('[' + this.peerId + ']Incomming message: ' + message);
         }
 
         function displayChao() {
                 
-            ui.emit('log', 'disconnecting peer: ' + this.peerId);
+            ui.log('disconnecting peer: ' + this.peerId);
             var index = peers.indexOf(this);
-            peers.splice(index, 1);
+            var peer = peers.splice(index, 1);
+            peer.removeListener('message', displayMessage);
         }
 
-        ui.on('broadcast', function(message) {
+        ui.on('message', function(message) {
 
             peers.forEach(function(peer) {
                 peer.send(message);

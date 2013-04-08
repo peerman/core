@@ -2,10 +2,15 @@
 
 	function UI() {
 
-		this.on('log', function(message) {
-
+		this.log = function log(message) {
+			
 			console.log(message);
-		});
+		};
+
+		this.send = function send(message) {
+
+			this.emit('message', message);
+		};
 	}
 
 	UI.prototype = peerman.EventEmitter.prototype;

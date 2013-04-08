@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>Peerman based Relayed Chat</title>
+
+    <script type="text/javascript" src='../peerman.js'></script>
+    <script type="text/javascript" src='ui.js'></script>
+    <script type="text/javascript">
+
+        document.title = peerman.peerId;
+        var recievedMessages = {};
+        var peers = {};
+        var resource = peerman.join('this-is-a-fake-resource-for-relay', { maxPeers: 2 });
+        resource.on('peer', function(peer) {
+
+            ui.log('Connecting with Peer: ' + peer.peerId);
+            peer.on('message', displayMessage);
+            peer.once('disconnected', displayChao);
+            peers[peer.peerId] = peer;
+        });
+
+        function displayMessage(message) {
+            
+            message = JSON.parse(message);
+
+            if(!recievedMessages[message.id]) {
+                if(message.from == this.peerId) {
+                    ui.log('[' + this.peerId + '] Incomming message: ' + message.text);
+                } else { 
+                    ui.log('[Relayed User] Incomming message: ' + message.text);
+                }
+
+                relayChat(message);
+            }
+        }
+
+        function displayChao() {
+                
+            ui.log('disconnecting peer: ' + this.peerId);
+            peers[this.peerId].removeListener('message', displayMessage);
+            delete peers[this.peerId];
+        }
+
+        ui.on('message', function(message) {
+
+            var chatMessage = {
+                from: peerman.peerId,
+                text: message,
+                id: uuid(),
+                ttl: 5
+            };
+
+            broadcastMessage(JSON.stringify(chatMessage));
+        });
+
+        function broadcastMessage(messageText) {
+
+            for(var id in peers) {
+                peers[id].send(messageText);
+            }
+        }
+
+        function relayChat(message) {
+            
+            if(message.ttl && !recievedMessages[message.id]) {
+                message.ttl--;
+                for(var id in peers) {
+                    var peer = peers[id];
+                    if(message.from != peer.peerId) {
+                        peer.send(JSON.stringify(message));
+                    }
+                }
+                recievedMessages[message.id] = true;
+            }
+        }
+
+        function uuid() {
+            return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {var r = Math.random()*16|0,v=c=='x'?r:r&0x3|0x8;return v.toString(16);});
+        }
+
+    </script>
+</head>
+<body>
+</body>
+</html>
