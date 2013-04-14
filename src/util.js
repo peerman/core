@@ -95,3 +95,33 @@ function getScriptQuery() {
 
     return query;
 }
+
+function Qbox(ticks) {
+    
+    var callbacks = [];
+    var loaded = false;
+
+    this.ready = function(callback) {
+        
+        if(loaded) {
+            callback();
+        } else {
+            callbacks.push(callback);
+        }
+    };
+
+    this.tick = function() {
+
+        if(--ticks == 0) {
+            this.start();
+        }
+    };
+
+    this.start = function() {
+
+        loaded = true;
+        callbacks.forEach(function(callback) {
+            callback();
+        });
+    };
+}

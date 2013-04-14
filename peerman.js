@@ -3885,6 +3885,36 @@ function getScriptQuery() {
 
     return query;
 }
+
+function Qbox(ticks) {
+    
+    var callbacks = [];
+    var loaded = false;
+
+    this.ready = function(callback) {
+        
+        if(loaded) {
+            callback();
+        } else {
+            callbacks.push(callback);
+        }
+    };
+
+    this.tick = function() {
+
+        if(--ticks == 0) {
+            this.start();
+        }
+    };
+
+    this.start = function() {
+
+        loaded = true;
+        callbacks.forEach(function(callback) {
+            callback();
+        });
+    };
+}
 function PeerSocket(resource, peerId, type) {
 
     var self = this;
@@ -4032,17 +4062,31 @@ function PeerDirectory (server, connectionManager, peerId, options) {
         connectionManager.removeListener('peer', onNewPeer);
     };
 
-    function initialize() {
+    this.reconnect = function reconnect(callback) {
+
+        initResource(callback);
+    };
+
+    function initResource(callback) {
         
         var connectedPeers = connectionManager.getConnectedPeerNames();
         var loginToken = getCookie('peerman-login-token');
         server.emit('init-resource', peerId, resource, {
+
             totalInterested: maxPeers,
             connectedPeers: connectedPeers,
             timestamp: Date.now()
         });
-        server.once('init-success-' + resource, function() {
-            findPeersFromDirectory.triggerIn(0, [NUM_REQUESTING_PEERS_COUNT]);
+
+        server.once('init-success-' + resource, callback);
+    }
+
+    function initialize() {
+        
+        initResource(function() {
+            server.once('init-success-' + resource, function() {
+                findPeersFromDirectory.triggerIn(0, [NUM_REQUESTING_PEERS_COUNT]);
+            });
         });
     }
 
@@ -4257,6 +4301,11 @@ function ConnectionManager(server, resourceName, peerId, maxPeers, options) {
         }
     };
 
+    this.reconnect = function reconnect(callback) {
+        
+        callback();
+    };
+
     server.on('answer-' + resourceName, onAnswer);
     server.on('offer-' + resourceName, onOffer);
     server.on('ice-candidate-' + resourceName, onIceCandidate);
@@ -4391,12 +4440,12 @@ extend(ConnectionManager, EventEmitter);
 function Peerman() {
 
 	var peerId = this.peerId = getPeerId();
-	var loginToken = getCookie('peerman-login-token');
 	var socket;
 	var options;
 	var resourceManager;
 
 	var resources = {};
+	var authenticated = null;
 
 	this.connect = function(server) {
 		
@@ -4442,9 +4491,32 @@ function Peerman() {
 		return resourceObj;
 	};
 
-	function initialize() {
+	this.reconnect = function reconnect(callback) {
+
+		authenticated = null;
+		initialize(callback);
+		//reconnect individual resources as well;
+	};
+
+	this.isAuthenticated = function isAuthenticated(callback) {
+
+		if(authenticated == null) {
+			//wait for the authenticated notice
+			socket.once('authenticated', callback);
+		} else {
+			callback(authenticated);
+		}
+	};
+
+	function initialize(callback) {
+
+		var loginToken = getCookie('peerman-login-token');
 
 		socket.emit('init', peerId, loginToken);
+		socket.once('authenticated', function(_authenticated) {
+			authenticated = _authenticated;
+			if(callback) callback(authenticated);
+		});
 	}
 }
 
@@ -4465,6 +4537,15 @@ function PeermanResource (peerId, server) {
 		peerDirectory.connect(resource, options.maxPeers);
 
 		this.connect = function() {};
+	};
+
+	this.reconnect = function reconnect(callback) {
+
+		var $ = new Qbox(2);
+		$.ready(callback);
+
+		connectionManager.reconnect(function() { $.tick(); });
+		peerDirectory.reconnect(function() { $.tick(); });
 	};
 
 	this.leave = function leave() {

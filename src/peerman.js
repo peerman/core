@@ -1,12 +1,12 @@
 function Peerman() {
 
 	var peerId = this.peerId = getPeerId();
-	var loginToken = getCookie('peerman-login-token');
 	var socket;
 	var options;
 	var resourceManager;
 
 	var resources = {};
+	var authenticated = null;
 
 	this.connect = function(server) {
 		
@@ -52,9 +52,32 @@ function Peerman() {
 		return resourceObj;
 	};
 
-	function initialize() {
+	this.reconnect = function reconnect(callback) {
+
+		authenticated = null;
+		initialize(callback);
+		//reconnect individual resources as well;
+	};
+
+	this.isAuthenticated = function isAuthenticated(callback) {
+
+		if(authenticated == null) {
+			//wait for the authenticated notice
+			socket.once('authenticated', callback);
+		} else {
+			callback(authenticated);
+		}
+	};
+
+	function initialize(callback) {
+
+		var loginToken = getCookie('peerman-login-token');
 
 		socket.emit('init', peerId, loginToken);
+		socket.once('authenticated', function(_authenticated) {
+			authenticated = _authenticated;
+			if(callback) callback(authenticated);
+		});
 	}
 }
 
@@ -75,6 +98,15 @@ function PeermanResource (peerId, server) {
 		peerDirectory.connect(resource, options.maxPeers);
 
 		this.connect = function() {};
+	};
+
+	this.reconnect = function reconnect(callback) {
+
+		var $ = new Qbox(2);
+		$.ready(callback);
+
+		connectionManager.reconnect(function() { $.tick(); });
+		peerDirectory.reconnect(function() { $.tick(); });
 	};
 
 	this.leave = function leave() {

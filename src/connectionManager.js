@@ -73,6 +73,11 @@ function ConnectionManager(server, resourceName, peerId, maxPeers, options) {
         }
     };
 
+    this.reconnect = function reconnect(callback) {
+        
+        callback();
+    };
+
     server.on('answer-' + resourceName, onAnswer);
     server.on('offer-' + resourceName, onOffer);
     server.on('ice-candidate-' + resourceName, onIceCandidate);

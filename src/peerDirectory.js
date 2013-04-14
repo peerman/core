@@ -28,17 +28,31 @@ function PeerDirectory (server, connectionManager, peerId, options) {
         connectionManager.removeListener('peer', onNewPeer);
     };
 
-    function initialize() {
+    this.reconnect = function reconnect(callback) {
+
+        initResource(callback);
+    };
+
+    function initResource(callback) {
         
         var connectedPeers = connectionManager.getConnectedPeerNames();
         var loginToken = getCookie('peerman-login-token');
         server.emit('init-resource', peerId, resource, {
+
             totalInterested: maxPeers,
             connectedPeers: connectedPeers,
             timestamp: Date.now()
         });
-        server.once('init-success-' + resource, function() {
-            findPeersFromDirectory.triggerIn(0, [NUM_REQUESTING_PEERS_COUNT]);
+
+        server.once('init-success-' + resource, callback);
+    }
+
+    function initialize() {
+        
+        initResource(function() {
+            server.once('init-success-' + resource, function() {
+                findPeersFromDirectory.triggerIn(0, [NUM_REQUESTING_PEERS_COUNT]);
+            });
         });
     }
 
