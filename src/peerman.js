@@ -86,9 +86,11 @@ function PeermanResource (peerId, server) {
 	var self = this;
 	var connectionManager;
 	var peerDirectory;
+	this.id;
 
 	this.connect = function connect(resource, options) {
 		
+		this.id = resource;
 		var connectionOptions = { answerTimeout: options.answerTimeout };
 		connectionManager = new ConnectionManager(server, resource, peerId, options.maxPeers, connectionOptions);
 		connectionManager.on('peer', onNewPeer);

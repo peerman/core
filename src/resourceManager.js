@@ -6,10 +6,10 @@ function ResourceManager(server) {
         server.once('create-resource', errorCallback(callback));
     };
 
-    this.removeResource = function removeResource(callback) {
+    this.removeResource = function removeResource(id, callback) {
 
-        server.emit('remove-resource');
-        server.once('remove-resource', errorCallback(callback));
+        server.emit('remove-resource', id);
+        server.once('remove-resource-' + id, errorCallback(callback));
     };
 
     this.getResource = function getResource(callback) {
@@ -61,8 +61,8 @@ function ResourceManager(server) {
                 throw Error('First argument need be a key or array of keys');
             }
 
-            server.emit('remove-metadata', keyList);
-            server.emit('remove-metadata-' + resource, errorCallback(callback));
+            server.emit('remove-metadata', resource, keyList);
+            server.once('remove-metadata-' + resource, errorCallback(callback));
         };
     }
 
