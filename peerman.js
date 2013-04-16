@@ -4167,6 +4167,12 @@ function ResourceManager(server) {
         server.once('get-resource', errorCallback(callback));
     };
 
+    this.isResourceOwner = function isResourceOwner(id, callback) {
+
+        server.emit('is-resource-owner', id);
+        server.once('is-resource-owner-' + id, errorCallback(callback));
+    };
+
     this.loadMetadata = function loadMetadata(resource) {
         
         return new ResourceMetadata(resource);
@@ -4463,6 +4469,7 @@ function Peerman() {
 		this.createResource = resourceManager.createResource.bind(resourceManager);
 		this.removeResource = resourceManager.removeResource.bind(resourceManager);
 		this.getResource = resourceManager.getResource.bind(resourceManager);
+		this.isResourceOwner = resourceManager.isResourceOwner.bind(resourceManager);
 
 		this.connect = function() {};
 	};

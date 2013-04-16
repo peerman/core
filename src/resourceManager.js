@@ -18,6 +18,12 @@ function ResourceManager(server) {
         server.once('get-resource', errorCallback(callback));
     };
 
+    this.isResourceOwner = function isResourceOwner(id, callback) {
+
+        server.emit('is-resource-owner', id);
+        server.once('is-resource-owner-' + id, errorCallback(callback));
+    };
+
     this.loadMetadata = function loadMetadata(resource) {
         
         return new ResourceMetadata(resource);

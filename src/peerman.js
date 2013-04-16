@@ -24,6 +24,7 @@ function Peerman() {
 		this.createResource = resourceManager.createResource.bind(resourceManager);
 		this.removeResource = resourceManager.removeResource.bind(resourceManager);
 		this.getResource = resourceManager.getResource.bind(resourceManager);
+		this.isResourceOwner = resourceManager.isResourceOwner.bind(resourceManager);
 
 		this.connect = function() {};
 	};
