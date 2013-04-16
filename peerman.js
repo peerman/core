@@ -3447,9 +3447,9 @@ if (typeof define === "function" && define.amd) {
     proto.once = function(evt, listener) {
 
         var self = this;
-        this.on(evt, function() {
+        this.on(evt, function wrapper() {
             listener.apply(self, arguments);
-            self.removeListener(evt, listener);
+            self.removeListener(evt, wrapper);
         });      
     };
 
@@ -4170,7 +4170,7 @@ function ResourceManager(server) {
     this.isResourceOwner = function isResourceOwner(id, callback) {
 
         server.emit('is-resource-owner', id);
-        server.once('is-resource-owner-' + id, errorCallback(callback));
+        server.once('is-resource-owner-' + id, callback);
     };
 
     this.loadMetadata = function loadMetadata(resource) {
@@ -4445,136 +4445,203 @@ function ConnectionManager(server, resourceName, peerId, maxPeers, options) {
 extend(ConnectionManager, EventEmitter);
 function Peerman() {
 
-	var peerId = this.peerId = getPeerId();
-	var socket;
-	var options;
-	var resourceManager;
+    var peerId = this.peerId = getPeerId();
+    var socket;
+    var options;
+    var resourceManager;
 
-	var resources = {};
-	var authenticated = null;
+    var resources = {};
+    var authenticated = null;
 
-	this.connect = function(server) {
-		
-		server = server || "http://localhost:5005";
-		socket = io.connect(server);
-		resourceManager = new ResourceManager(socket);
-		
-		//initialize
-		if(socket.socket.connected) {
-			initialize();
-		}
-		socket.on('connect', initialize);
-		
-		//add some utility methods
-		this.createResource = resourceManager.createResource.bind(resourceManager);
-		this.removeResource = resourceManager.removeResource.bind(resourceManager);
-		this.getResource = resourceManager.getResource.bind(resourceManager);
-		this.isResourceOwner = resourceManager.isResourceOwner.bind(resourceManager);
+    var sigServer;
+    var appServer;
 
-		this.connect = function() {};
-	};
+    this.waitForLoginCompletion = false;
+    this.waitForLogoutCompletion = false;
 
-	this.disconnect = function disconnect() {
-		
-		for(var key in resources) {
-			resources[key].leave();
-		}
-		socket.removeListener('connect', initialize);
-		socket.disconnect();
-	};
+    this.connect = function(_sigServer, _appServer) {
+        
+        appServer = _appServer;
+        sigServer = _sigServer;
+        socket = io.connect(sigServer);
+        resourceManager = new ResourceManager(socket);
+        
+        //initialize
+        if(socket.socket.connected) {
+            initialize();
+        }
+        socket.on('connect', initialize);
+        
+        //add some utility methods
+        this.createResource = resourceManager.createResource.bind(resourceManager);
+        this.removeResource = resourceManager.removeResource.bind(resourceManager);
+        this.getResource = resourceManager.getResource.bind(resourceManager);
+        this.isResourceOwner = resourceManager.isResourceOwner.bind(resourceManager);
 
-	this.join = function join(id, options) {
+        this.connect = function() {};
+    };
 
-		options = options || {};
-		options.maxPeers = options.maxPeers || 5;
-		options.answerTimeout = options.answerTimeout || 60000;
-		options.offerTimeout = options.offerTimeout || 60000;
+    this.disconnect = function disconnect() {
+        
+        for(var key in resources) {
+            resources[key].leave();
+        }
+        socket.removeListener('connect', initialize);
+        socket.disconnect();
+    };
 
-		var resourceObj = new PeermanResource(peerId, socket);
-		resourceObj.connect(id, options);
-		resourceObj.metadata = resourceManager.loadMetadata(id);
+    this.join = function join(id, options) {
 
-		resources[id] = resourceObj;
-		return resourceObj;
-	};
+        options = options || {};
+        options.maxPeers = options.maxPeers || 5;
+        options.answerTimeout = options.answerTimeout || 60000;
+        options.offerTimeout = options.offerTimeout || 60000;
 
-	this.reconnect = function reconnect(callback) {
+        var resourceObj = new PeermanResource(peerId, socket);
+        resourceObj.connect(id, options);
+        resourceObj.metadata = resourceManager.loadMetadata(id);
 
-		authenticated = null;
-		initialize(callback);
-		//reconnect individual resources as well;
-	};
+        resources[id] = resourceObj;
+        return resourceObj;
+    };
 
-	this.isAuthenticated = function isAuthenticated(callback) {
+    this.reconnect = function reconnect(callback) {
 
-		if(authenticated == null) {
-			//wait for the authenticated notice
-			socket.once('authenticated', callback);
-		} else {
-			callback(authenticated);
-		}
-	};
+        authenticated = null;
+        initialize(callback);
+        //TODO: reconnect individual resources as well;
+    };
 
-	function initialize(callback) {
+    this.isAuthenticated = function isAuthenticated(callback) {
 
-		var loginToken = getCookie('peerman-login-token');
+        if(authenticated == null) {
+            //wait for the authenticated notice
+            socket.once('authenticated', callback);
+        } else {
+            callback(authenticated);
+        }
+    };
 
-		socket.emit('init', peerId, loginToken);
-		socket.once('authenticated', function(_authenticated) {
-			authenticated = _authenticated;
-			if(callback) callback(authenticated);
-		});
-	}
+    this.login = function login(callback) {
+
+        this.once('complete-login', callback);
+        this.waitForLoginCompletion = true;
+
+        var url = appServer + '/login?redirect=' + location.href;
+        openWindow(url);
+    };
+
+    this._completeLogin = function _completeLogin() {
+
+        var self = this;
+        this.reconnect(function(authenticated) {
+            
+            self.waitForLoginCompletion = false;
+            self.emit('complete-login', authenticated);
+        });
+    };
+
+    this.logout = function logout(callback) {
+
+        this.once('complete-logout', callback);
+        this.waitForLogoutCompletion = true;
+
+        var url = appServer + '/logout?redirect=' + location.href;
+        openWindow(url);
+    };
+
+    this._completeLogout = function _completeLogout() {
+
+        var self = this;
+        this.reconnect(function(authenticated) {
+
+            self.waitForLogoutCompletion = false;
+            self.emit('complete-logout', authenticated);
+        });
+    };
+
+    function openWindow(url) {
+
+        var leftPosition = (screen.width - 600) / 2;
+        window.open(url, "Peerman Login", "width=600px,height=500px,top=100px,left=" + leftPosition + "px");
+    }
+
+    function initialize(callback) {
+
+        var loginToken = getCookie('peerman-login-token');
+
+        socket.emit('init', peerId, loginToken);
+        socket.once('authenticated', function(_authenticated) {
+            authenticated = _authenticated;
+            if(callback) callback(authenticated);
+        });
+    }
 }
+
+extend(Peerman, EventEmitter);
 
 function PeermanResource (peerId, server) {
 
-	var self = this;
-	var connectionManager;
-	var peerDirectory;
-	this.id;
+    var self = this;
+    var connectionManager;
+    var peerDirectory;
+    this.id;
 
-	this.connect = function connect(resource, options) {
-		
-		this.id = resource;
-		var connectionOptions = { answerTimeout: options.answerTimeout };
-		connectionManager = new ConnectionManager(server, resource, peerId, options.maxPeers, connectionOptions);
-		connectionManager.on('peer', onNewPeer);
-		
-		var directoryOptions = { offerTimeout: options.offerTimeout };
-		peerDirectory = new PeerDirectory(server, connectionManager, peerId, directoryOptions);
-		peerDirectory.connect(resource, options.maxPeers);
+    this.connect = function connect(resource, options) {
+        
+        this.id = resource;
+        var connectionOptions = { answerTimeout: options.answerTimeout };
+        connectionManager = new ConnectionManager(server, resource, peerId, options.maxPeers, connectionOptions);
+        connectionManager.on('peer', onNewPeer);
+        
+        var directoryOptions = { offerTimeout: options.offerTimeout };
+        peerDirectory = new PeerDirectory(server, connectionManager, peerId, directoryOptions);
+        peerDirectory.connect(resource, options.maxPeers);
 
-		this.connect = function() {};
-	};
+        this.connect = function() {};
+    };
 
-	this.reconnect = function reconnect(callback) {
+    this.reconnect = function reconnect(callback) {
 
-		var $ = new Qbox(2);
-		$.ready(callback);
+        var $ = new Qbox(2);
+        $.ready(callback);
 
-		connectionManager.reconnect(function() { $.tick(); });
-		peerDirectory.reconnect(function() { $.tick(); });
-	};
+        connectionManager.reconnect(function() { $.tick(); });
+        peerDirectory.reconnect(function() { $.tick(); });
+    };
 
-	this.leave = function leave() {
+    this.leave = function leave() {
 
-		connectionManager.removeListener('peer', onNewPeer);
-		peerDirectory.close();
-		connectionManager.close();
-	};
+        connectionManager.removeListener('peer', onNewPeer);
+        peerDirectory.close();
+        connectionManager.close();
+    };
 
-	function onNewPeer(peer) {
+    function onNewPeer(peer) {
 
-		self.emit('peer', peer);
-	}
+        self.emit('peer', peer);
+    }
 }
 
 extend(PeermanResource, EventEmitter);
 
 
+// check for if this is the login popup window
+if(window.opener && window.opener.peerman) {
+
+	if(window.opener.peerman.waitForLoginCompletion) {
+		window.opener.peerman._completeLogin();
+		window.close();
+	} else if(window.opener.peerman.waitForLogoutCompletion) {
+		window.opener.peerman._completeLogout();
+		window.close();
+	}
+}
+
+
 var query = getScriptQuery();
-var server = query.server || 'http://localhost:5005'; //change this to production value later
+var sigServer = query.sigServer || 'http://localhost:5005'; //change this to production value later
+var appServer = query.appServer || 'http://localhost:5006'; //change this to production value later
 
 //added debug options
 if(query.debug) {
@@ -4585,7 +4652,7 @@ if(query.debug) {
 }
 
 var peerman = window.peerman = new Peerman();
-peerman.connect(server);
+peerman.connect(sigServer, appServer);
 
 //exporting Classes
 peerman.EventEmitter = EventEmitter;

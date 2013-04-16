@@ -21,7 +21,7 @@ function ResourceManager(server) {
     this.isResourceOwner = function isResourceOwner(id, callback) {
 
         server.emit('is-resource-owner', id);
-        server.once('is-resource-owner-' + id, errorCallback(callback));
+        server.once('is-resource-owner-' + id, callback);
     };
 
     this.loadMetadata = function loadMetadata(resource) {

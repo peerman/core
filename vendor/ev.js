@@ -119,9 +119,9 @@
     proto.once = function(evt, listener) {
 
         var self = this;
-        this.on(evt, function() {
+        this.on(evt, function wrapper() {
             listener.apply(self, arguments);
-            self.removeListener(evt, listener);
+            self.removeListener(evt, wrapper);
         });      
     };
 
